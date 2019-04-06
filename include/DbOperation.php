@@ -24,21 +24,36 @@ class DbOperation
         $last_slash = strrpos($new_filepath, "/");
         $filename = substr($new_filepath, $last_slash + 1);
         $current_filepath = TEMP_DIRECTORY . $filename;
-        exec("mysqldump -h " . DB_HOST . " -u " . DB_USERNAME .  " --password=" . DB_PASSWORD . " " . DB_NAME . " > " . $current_filepath);
-        echo exec("sudo /usr/local/bin/emr_export.sh " . $current_filepath . " " . $new_filepath);
+        exec("mysqldump --no-create-info --insert-ignore --skip-comments --skip-add-locks --ignore-table=emr_db.admin_user --ignore-table=emr_db.settings -h " . DB_HOST . " -u " . DB_USERNAME .  " --password=" . DB_PASSWORD . " " . DB_NAME . " > " . $current_filepath);
+        echo exec("/usr/local/bin/emr_export.sh " . $current_filepath . " " . $new_filepath);
       	unlink($current_filepath);
         header("LOCATION: index.php?exportDone=2&lang=" . $lang);
+    }
+
+    public function importDataSimple($filepath, $lang) {
+      // simplified import function
+      // relies on modified export with INSERT IGNORE, no locks, and no admin user or settings tables
+      // relies on lack of foreign key constraints so can import tables in any order
+      // if import times out or otherwise fails it can be run again
+      // to import we simply run all the insert statements in the export
+
+      $last_slash = strrpos($filepath, "/");
+      $filename = substr($filepath, $last_slash + 1);
+	    $temp_filepath = TEMP_DIRECTORY . $filename;
+	    echo exec("/usr/local/bin/emr_import.sh " . $filepath . " " . $temp_filepath);
+	    exec("mysql -h " . DB_HOST . " -u " . DB_USERNAME .  " --password=" . DB_PASSWORD . " " . DB_NAME . " < " . $temp_filepath);
+      echo 'Import processed. Please reload or wait for automatic browser refresh!';
     }
 
     public function importData($filepath, $lang) {
 	$last_slash = strrpos($filepath, "/");
         $filename = substr($filepath, $last_slash + 1);
 	$temp_filepath = TEMP_DIRECTORY . $filename;
-	echo exec("sudo /usr/local/bin/emr_import.sh " . $filepath . " " . $temp_filepath);
+	echo exec("/usr/local/bin/emr_import.sh " . $filepath . " " . $temp_filepath);
 
-	
+
 	$maxRuntime = 8; // less then your max script execution limit
-        $deadline = time()+$maxRuntime; 
+        $deadline = time()+$maxRuntime;
         $progressFilename = TEMP_DIRECTORY . $filename . '_filepointer'; // tmp file for progress
         $consultsProcessedFilename = TEMP_DIRECTORY . $filename . '_consultsProcessed';
         $errorFilename = TEMP_DIRECTORY . $filename . '_error'; // tmp file for erro
@@ -58,7 +73,7 @@ class DbOperation
         if( file_exists($progressFilename) ){
             $filePosition = file_get_contents($progressFilename);
             fseek($fp, $filePosition);
-        } 
+        }
 
         $consults_processed = file_exists($consultsProcessedFilename);
         $consults_to_update = [];
@@ -125,7 +140,7 @@ class DbOperation
                             }
 
                             $consults_processed = true;
-                            file_put_contents($consultsProcessedFilename, $consults_to_update_str); 
+                            file_put_contents($consultsProcessedFilename, $consults_to_update_str);
                             if(!empty($consults_to_update_str)) {
                                 $consults_to_update_str = substr($consults_to_update_str, 0, -1);
                                 $consults_to_update = explode($consults_to_update_str, ",");
@@ -418,7 +433,7 @@ class DbOperation
                                 if(in_array($consult_id, $consults_to_update)) {
                                     $consult_stuff_insert_rows .= $value_row . ", ";
                                 }
-                            } 
+                            }
                         }
                         if(!empty($consult_stuff_insert_rows)) {
                             $consult_stuff_insert_rows = substr($consult_stuff_insert_rows, 0, -2);
@@ -427,7 +442,7 @@ class DbOperation
                     }
                 }
                 $query = '';
-                file_put_contents($progressFilename, ftell($fp)); // save the current file position for 
+                file_put_contents($progressFilename, ftell($fp)); // save the current file position for
                 $queryCount++;
             }
         }
@@ -569,7 +584,7 @@ class DbOperation
         $stmt->store_result();
         $num_rows = $stmt->num_rows;
         $stmt->close();
-        return $num_rows > 0; 
+        return $num_rows > 0;
     }
 
     public function createUser($name, $username, $password) {
@@ -645,7 +660,7 @@ class DbOperation
         $chief_physicians = $stmt->get_result();
         $stmt->close();
         return $chief_physicians;
-    } 
+    }
 
     public function getExistingSigningPhysicians($medical_group) {
         $stmt = $this->con->prepare("SELECT DISTINCT signing_physician FROM aa_consults WHERE medical_group = ? AND signing_physician IS NOT NULL ORDER BY signing_physician");
@@ -676,7 +691,7 @@ class DbOperation
     public function getSettings() {
         if(!$this->settingsExist()) {
             $this->createSettings();
-        } 
+        }
         $stmt = $this->con->prepare("SELECT * FROM settings");
         $stmt->execute();
         $settings = $stmt->get_result()->fetch_assoc();
@@ -725,7 +740,7 @@ class DbOperation
         $stmt->store_result();
         $num_rows = $stmt->num_rows;
         $stmt->close();
-        return $num_rows > 0; 
+        return $num_rows > 0;
     }
 
     public function getPatientsWithCompletedConsultToday() {
@@ -830,7 +845,7 @@ class DbOperation
             $stmt->store_result();
             $num_rows = $stmt->num_rows;
             $stmt->close();
-            return $num_rows > 0; 
+            return $num_rows > 0;
         } else {
             $stmt = $this->con->prepare("SELECT id from patients WHERE name LIKE ?");
             $stmt->bind_param("s", $name);
@@ -839,7 +854,7 @@ class DbOperation
             $num_rows = $stmt->num_rows;
             $stmt->close();
             return $num_rows > 0;
-        }     
+        }
     }
 
     public function getSimilarPatients($name, $sex, $exact_date_of_birth_known, $date_of_birth) {
@@ -875,7 +890,7 @@ class DbOperation
         $result = $stmt->execute();
         $stmt->close();
         if ($result) {
-            return $id;   
+            return $id;
         } else {
             return INVALID_VALUE;
         }
@@ -1108,7 +1123,7 @@ class DbOperation
             $stmt->close();
             if ($result) {
                 $this->updatePatientConsultStatus($patient_id, $status, $current_datetime);
-                return $id;  
+                return $id;
             } else {
                 return -1;
             }
@@ -1178,7 +1193,7 @@ class DbOperation
                 $this->updatePatientConsultStatus($patient_id, $status, Utilities::getCurrentDateTime());
             }
         }
-        
+
     }
 
     public function getActiveConsult($patient_id) {
@@ -1209,7 +1224,7 @@ class DbOperation
             $recent_consult = $stmt->get_result()->fetch_assoc();
             $stmt->close();
             return $recent_consult;
-        } 
+        }
         return null;
     }
 
@@ -1223,7 +1238,7 @@ class DbOperation
             $recent_consult_id = $stmt->get_result()->fetch_assoc()['id'];
             $stmt->close();
             return $recent_consult_id;
-        } 
+        }
         return -1;
     }
 
@@ -1731,7 +1746,7 @@ class DbOperation
         if($arg1 == NULL) {
             if($information) {
                 $this->deleteNullExams($consult_id, BOOLEAN_TRUE, $main_category, NULL, NULL, NULL, NULL);
-            } 
+            }
         } else if($arg2 == NULL) {
             if($information) {
                 $this->deleteNullExams($consult_id, BOOLEAN_TRUE, $main_category, $arg1, NULL, NULL, NULL);
@@ -2067,11 +2082,11 @@ class DbOperation
 
         if($add_to_medication_history == 2) {
             $this->addMedicationHistory($patient_id, $consult_id, $type, $other, $notes);
-        } 
+        }
 
         if($current_consult_status == CONSULT_STATUS_READY_FOR_MEDICAL_CONSULT_PENDING) {
             $this->updateConsultStatus($patient_id, $consult_id, CONSULT_STATUS_READY_FOR_MEDICAL_CONSULT_IN_PROGRESS);
-        } 
+        }
 
     }
 
@@ -2121,7 +2136,7 @@ class DbOperation
 
         if($add_to_medication_history == 2) {
             $this->addMedicationHistory($patient_id, $consult_id, $type, $other, $notes);
-        } 
+        }
     }
 
     public function getTreatmentsStructured($consult_id) {
@@ -2209,7 +2224,7 @@ class DbOperation
             if($current_consult_status == CONSULT_STATUS_READY_FOR_MEDICAL_CONSULT_PENDING) {
                 $this->updateConsultStatus($patient_id, $consult_id, CONSULT_STATUS_READY_FOR_MEDICAL_CONSULT_IN_PROGRESS);
             }
-        } 
+        }
     }
 
     public function updateExistingFollowup($consult_id, $is_needed, $is_type_custom, $type, $is_reason_custom, $reason, $notes) {
@@ -2235,7 +2250,7 @@ class DbOperation
         $stmt->store_result();
         $num_rows = $stmt->num_rows;
         $stmt->close();
-        return $num_rows > 0; 
+        return $num_rows > 0;
     }
 
     public function getFollowup($consult_id) {

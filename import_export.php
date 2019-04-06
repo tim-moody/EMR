@@ -9,7 +9,8 @@
 	$current_export_dir = "";
 	if(isset($_GET['importFile'])) {
 		$import_file = $_GET['importFile'];
-		$db->importData($import_file, $lang);
+		//$db->importData($import_file, $lang);
+		$db->importDataSimple($import_file, $lang);
 	} else if(isset($_GET['exportFile'])) {
 		$export_file = $_GET['exportFile'];
 		$db->exportData($export_file, $lang);
@@ -17,7 +18,7 @@
 		$current_import_dir = $_GET['import'];
 	} else if (isset($_GET['export'])) {
 		$current_export_dir = $_GET['export'];
-	} 
+	}
 
 ?>
 
@@ -30,7 +31,7 @@
 			<img id="navigation_header_image" onclick="homeClick();" src="images/home_white.png" alt="Home" height="28px" width="28px">
 			<span id="navigation_header_span"><?php echo IMPORT_EXPORT_DATA; ?></span>
 		</div>
-		<div id="navigation_header_bottom_buffer"></div>		
+		<div id="navigation_header_bottom_buffer"></div>
 	</div>
 
 	<div id="link_row" class="row">
@@ -182,7 +183,7 @@
 	      				$inner_directories_exist = true;
 	      				$full_path .= '/';
 	      				echo '<li class="list-group-item" onclick="exportDirClick(\'' . $full_path . '\');">' . $filename . '</li>';
-	      			} 
+	      			}
 	      		}
 	      	}
       	?>
