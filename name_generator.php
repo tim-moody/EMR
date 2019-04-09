@@ -13,7 +13,7 @@
 
 
 	for ($i = 0; $i < 200; $i++) {
-		$community_id = rand(1,count($community_array));
+		$community_name = $community_array[rand(0, count($community_array) - 1)];
 		$sex = rand(1,2);
 		$name = "";
 		if ($sex == SEX_MALE) {
@@ -23,9 +23,11 @@
 		}
 		$date_of_birth = generateRandomDateOfBirth();
 		$exact_date_of_birth_known = rand(1,2);
-		$datetime_registered = "2017-04-30 03:27:56";
+		//$datetime_registered = "2017-04-30 03:27:56";
+		$datetime_registered = date("Y-m-d H:i:s");
 
-		$db->createPatient(true, $community_id, $name, $sex, $date_of_birth, $exact_date_of_birth_known, $datetime_registered);
+		//$db->createPatient(true, $community_id, $name, $sex, $date_of_birth, $exact_date_of_birth_known, $datetime_registered);
+		$db->createPatient($name, $community_name, $sex, $exact_date_of_birth_known, $date_of_birth, $datetime_registered);
 
 
 	}
